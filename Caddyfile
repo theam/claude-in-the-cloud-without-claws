@@ -1,0 +1,3 @@
+software.theagilemonkeys.com {
+	reverse_proxy coder:8080
+}
