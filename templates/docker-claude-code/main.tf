@@ -1,10 +1,12 @@
 terraform {
   required_providers {
     coder = {
-      source = "coder/coder"
+      source  = "coder/coder"
+      version = "~> 2.0"
     }
     docker = {
-      source = "kreuzwerker/docker"
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
     }
   }
 }
@@ -39,9 +41,6 @@ resource "coder_agent" "main" {
     # Verify Claude Code is available
     if command -v claude &>/dev/null; then
       echo "Claude Code is ready. Run 'claude' to start."
-    else
-      echo "Installing Claude Code..."
-      sudo npm install -g @anthropic-ai/claude-code
     fi
   EOT
 
@@ -133,6 +132,10 @@ resource "docker_container" "workspace" {
   image    = docker_image.main.name
   name     = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
   hostname = data.coder_workspace.me.name
+
+  # Resource limits — prevent single workspace from starving the host
+  memory = 4096
+  cpu_shares = 1024
 
   entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
 

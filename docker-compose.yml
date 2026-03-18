@@ -1,6 +1,6 @@
 services:
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.9-alpine
     restart: unless-stopped
     ports:
       - "80:80"
@@ -9,17 +9,20 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      - frontend
     depends_on:
       - coder
 
   coder:
-    image: ghcr.io/coder/coder:latest
+    image: ghcr.io/coder/coder:v2.31.5
     restart: unless-stopped
     environment:
       CODER_HTTP_ADDRESS: "0.0.0.0:8080"
       CODER_ACCESS_URL: "${CODER_ACCESS_URL}"
       CODER_PG_CONNECTION_URL: "postgresql://${POSTGRES_USER:-coder}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-coder}?sslmode=disable"
       CODER_TELEMETRY_ENABLE: "false"
+      CODER_DISABLE_PASSWORD_AUTH: "true"
       # GitHub OAuth — restricted to theam org
       CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE: "true"
       CODER_OAUTH2_GITHUB_ALLOW_SIGNUPS: "true"
@@ -28,12 +31,15 @@ services:
       - "${DOCKER_GROUP_ID:-999}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - frontend
+      - backend
     depends_on:
       database:
         condition: service_healthy
 
   database:
-    image: postgres:16-alpine
+    image: postgres:16.8-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-coder}
@@ -41,11 +47,18 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-coder}
     volumes:
       - coder_pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-coder} -d ${POSTGRES_DB:-coder}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+networks:
+  frontend:
+  backend:
+    internal: true
 
 volumes:
   coder_pgdata:
