@@ -23,11 +23,12 @@ services:
       CODER_PG_CONNECTION_URL: "postgresql://${POSTGRES_USER:-coder}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-coder}?sslmode=disable"
       CODER_TELEMETRY_ENABLE: "false"
       CODER_DISABLE_PASSWORD_AUTH: "true"
-      # GitHub OAuth — access controlled via pre-created user accounts
-      # (default GitHub app lacks read:org scope for org-based restriction)
-      CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE: "true"
-      CODER_OAUTH2_GITHUB_ALLOW_SIGNUPS: "false"
-      CODER_OAUTH2_GITHUB_ALLOW_EVERYONE: "true"
+      # GitHub OAuth — custom app with read:org scope, restricted to theam org
+      CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE: "false"
+      CODER_OAUTH2_GITHUB_CLIENT_ID: "${GITHUB_OAUTH_CLIENT_ID}"
+      CODER_OAUTH2_GITHUB_CLIENT_SECRET: "${GITHUB_OAUTH_CLIENT_SECRET}"
+      CODER_OAUTH2_GITHUB_ALLOW_SIGNUPS: "true"
+      CODER_OAUTH2_GITHUB_ALLOWED_ORGS: "theam"
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
     volumes:
