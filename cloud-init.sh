@@ -16,6 +16,30 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 systemctl enable docker
 systemctl start docker
 
+# ---- Ensure SSH stays accessible ----
+# Docker's iptables rules can interfere with SSH. Add a persistent rule
+# in DOCKER-USER chain (processed before Docker's own rules) to accept SSH.
+iptables -I DOCKER-USER -p tcp --dport 22 -j ACCEPT 2>/dev/null || true
+
+# Make the rule survive reboots via a systemd service that runs after Docker
+cat > /etc/systemd/system/ssh-iptables-fix.service <<'SSHFIX'
+[Unit]
+Description=Ensure SSH is allowed through Docker iptables
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/iptables -I DOCKER-USER -p tcp --dport 22 -j ACCEPT
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+SSHFIX
+systemctl daemon-reload
+systemctl enable ssh-iptables-fix.service
+echo "SSH iptables fix installed."
+
 # ---- Clone repo ----
 cd /opt
 git clone https://github.com/theam/claude-in-the-cloud-without-claws.git coder
@@ -33,6 +57,8 @@ POSTGRES_USER=coder
 POSTGRES_PASSWORD=${PG_PASSWORD}
 POSTGRES_DB=coder
 DOCKER_GROUP_ID=${DOCKER_GID}
+GITHUB_OAUTH_CLIENT_ID=Ov23lilBUrSxGdEqfofN
+GITHUB_OAUTH_CLIENT_SECRET=f0b9a66e01878e007907908dae1845030762ce4d
 ENVEOF
 chmod 600 .env
 
@@ -86,6 +112,28 @@ echo "$SESSION_TOKEN" | coder login --use-token-as-session http://localhost:8080
 coder templates push docker-claude-code \
   --directory /opt/coder/templates/docker-claude-code \
   --yes
+
+# ---- Promote first GitHub OAuth user to owner (convenience) ----
+# Wait briefly for the first GitHub user to sign up, then promote them.
+# This runs in the background so it doesn't block setup completion.
+nohup bash -c '
+SESSION_TOKEN="'"${SESSION_TOKEN}"'"
+for i in $(seq 1 120); do
+  USERS=$(curl -sf http://localhost:8080/api/v2/users \
+    -H "Coder-Session-Token: ${SESSION_TOKEN}" | jq -r ".users[] | select(.username != \"admin\") | .username")
+  if [ -n "$USERS" ]; then
+    for u in $USERS; do
+      curl -sf -X PUT "http://localhost:8080/api/v2/users/${u}/roles" \
+        -H "Content-Type: application/json" \
+        -H "Coder-Session-Token: ${SESSION_TOKEN}" \
+        -d "{\"roles\":[\"owner\"]}"
+      echo "Promoted ${u} to owner"
+    done
+    break
+  fi
+  sleep 10
+done
+' > /var/log/coder-promote.log 2>&1 &
 
 # ---- Clean up sensitive data from logs ----
 echo "=== Coder Setup Complete ==="
