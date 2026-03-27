@@ -95,6 +95,14 @@ resource "coder_app" "code-server" {
   }
 }
 
+resource "coder_app" "terminal" {
+  agent_id     = coder_agent.main.id
+  slug         = "terminal"
+  display_name = "Terminal"
+  icon         = "/icon/terminal.svg"
+  command      = "/bin/bash"
+}
+
 # ---------------------------------------------------------------------------
 # Persistent home directory
 # ---------------------------------------------------------------------------
@@ -134,7 +142,7 @@ resource "docker_container" "workspace" {
   hostname = data.coder_workspace.me.name
 
   # Resource limits — prevent single workspace from starving the host
-  memory = 4096
+  memory = 8192
   cpu_shares = 1024
 
   entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
