@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eu
 exec > /var/log/coder-setup.log 2>&1
 
 echo "=== Coder Setup Starting ==="
