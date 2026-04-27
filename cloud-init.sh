@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eu
+export HOME=/root
 exec > /var/log/coder-setup.log 2>&1
 
 echo "=== Coder Setup Starting ==="

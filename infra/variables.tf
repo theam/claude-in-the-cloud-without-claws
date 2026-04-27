@@ -24,3 +24,9 @@ variable "bundle_id" {
   # medium_3_0  = 2 vCPU, 4GB RAM  (~$20/mo)
   # xlarge_3_0  = 4 vCPU, 16GB RAM (~$80/mo)
 }
+
+variable "domain" {
+  description = "Public domain name for the Coder dashboard (must have DNS A record pointing to static IP)"
+  type        = string
+  default     = "software.theagilemonkeys.com"
+}
